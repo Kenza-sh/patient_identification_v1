@@ -150,29 +150,136 @@ handlers: Dict[str, callable] = {
     "extraire_numero_telephone": extractor.extraire_numero_telephone
 }
 
+
+def get_structured_error(error_type: str, message: str, details: str = None) -> dict:
+    """Retourne une structure d'erreur standardisée"""
+    return {
+        "error": {
+            "type": error_type,
+            "message": message,
+            "details": details
+        }
+    }
+
 @app.route(route="patient_ident")
 def patient_ident(req: func.HttpRequest) -> func.HttpResponse:
-    """Gère la requête en fonction de l'action demandée"""
+    """Gère la requête en fonction de l'action demandée avec gestion améliorée des erreurs"""
+    # Initialisation de la réponse
+    response_headers = {
+        "Content-Type": "application/json",
+        "X-Api-Version": "1.0"
+    }
+
     try:
-        req_body = req.get_json()
-    except ValueError:
-        return func.HttpResponse("Invalid JSON", status_code=400)
+        # Tentative de récupération du JSON
+        try:
+            req_body = req.get_json()
+        except Exception as e:
+            error_msg = "Format JSON invalide dans le corps de la requête"
+            logger.error(f"{error_msg}: {str(e)}")
+            return func.HttpResponse(
+                body=json.dumps(get_structured_error(
+                    "InvalidJsonFormat",
+                    error_msg,
+                    f"Erreur de parsing : {str(e)}"
+                )),
+                status_code=400,
+                headers=response_headers
+            )
 
-    action = req_body.get("action", "").strip()
-    texte = req_body.get("texte", "").strip()
+        # Validation des paramètres d'entrée
+        required_params = {"action", "texte"}
+        missing_params = required_params - set(req_body.keys())
+        
+        if missing_params:
+            error_msg = "Paramètres obligatoires manquants"
+            logger.warning(f"{error_msg}: {', '.join(missing_params)}")
+            return func.HttpResponse(
+                body=json.dumps(get_structured_error(
+                    "MissingParameters",
+                    error_msg,
+                    f"Paramètres manquants : {', '.join(missing_params)}"
+                )),
+                status_code=400,
+                headers=response_headers
+            )
 
-    # Vérification des paramètres
-    if not action or not texte:
-        return func.HttpResponse("Paramètres 'action' et 'texte' requis", status_code=400)
+        action = str(req_body.get("action", "")).strip()
+        texte = str(req_body.get("texte", "")).strip()
 
-    # Vérification si l'action est valide
-    handler = handlers.get(action)
-    if not handler:
-        return func.HttpResponse("Action inconnue", status_code=400)
+        # Validation des valeurs
+        validation_errors = []
+        if not action:
+            validation_errors.append("Le paramètre 'action' ne peut pas être vide")
+        if not texte:
+            validation_errors.append("Le paramètre 'texte' ne peut pas être vide")
+        
+        if validation_errors:
+            logger.warning(f"Validation failed: {validation_errors}")
+            return func.HttpResponse(
+                body=json.dumps(get_structured_error(
+                    "InvalidParameters",
+                    "Erreur de validation des paramètres",
+                    validation_errors
+                )),
+                status_code=400,
+                headers=response_headers
+            )
 
-    # Exécuter la fonction correspondante et retourner le résultat
-    try:
-        result = handler(texte)
-        return func.HttpResponse(json.dumps({action: result}), mimetype="application/json", status_code=200)
+        # Recherche du handler
+        handler = handlers.get(action)
+        if not handler:
+            available_actions = list(handlers.keys())
+            error_msg = f"Action '{action}' non reconnue"
+            logger.warning(f"{error_msg}. Actions disponibles : {', '.join(available_actions)}")
+            return func.HttpResponse(
+                body=json.dumps(get_structured_error(
+                    "UnknownAction",
+                    error_msg,
+                    {"actions_disponibles": available_actions}
+                )),
+                status_code=400,
+                headers=response_headers
+            )
+
+        # Exécution du traitement
+        try:
+            result = handler(texte)
+            return func.HttpResponse(
+                body=json.dumps({
+                    "success": True,
+                    "action": action,
+                    "result": result
+                }),
+                status_code=200,
+                headers=response_headers
+            )
+            
+        except Exception as e:
+            error_id = f"ERR-{hash(e)}"
+            logger.error(f"[{error_id}] Erreur lors du traitement : {str(e)}\n{traceback.format_exc()}")
+            return func.HttpResponse(
+                body=json.dumps(get_structured_error(
+                    "ProcessingError",
+                    "Erreur lors du traitement de la requête",
+                    {
+                        "error_id": error_id,
+                        "details": str(e),
+                        "traceback": traceback.format_exc() if app.settings.DEBUG else None
+                    }
+                )),
+                status_code=500,
+                headers=response_headers
+            )
+
     except Exception as e:
-        return func.HttpResponse(f"Erreur lors de l'extraction : {str(e)}", status_code=500)
+        logger.critical(f"Erreur critique non gérée : {str(e)}\n{traceback.format_exc()}")
+        return func.HttpResponse(
+            body=json.dumps(get_structured_error(
+                "InternalServerError",
+                "Erreur interne du serveur",
+                {"error_id": "CRITICAL-001"}
+            )),
+            status_code=500,
+            headers=response_headers
+        )
