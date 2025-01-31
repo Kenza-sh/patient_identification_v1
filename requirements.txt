@@ -42,21 +42,22 @@ rich==13.9.4
 safetensors==0.5.2
 scikit-learn==1.6.1
 scipy==1.15.1
+--extra-index-url https://download.pytorch.org/whl/cpu
+transformers==4.30.0
+torch==2.0.0+cpu 
+tokenizers==0.13.0
+sentencepiece==0.1.99
 sentence-transformers==3.4.1
-sentencepiece==0.2.0
 simplejson==3.19.3
 six==1.17.0
 sympy==1.13.1
 tensorstore==0.1.71
 threadpoolctl==3.5.0
 tiktoken==0.8.0
-tokenizers==0.21.0
 toolz==1.0.0
-torch==2.6.0
 torchaudio==2.6.0
 torchvision==0.21.0
 tqdm==4.67.1
-transformers==4.48.1
 typing_extensions==4.12.2
 tzdata==2025.1
 tzlocal==5.2
