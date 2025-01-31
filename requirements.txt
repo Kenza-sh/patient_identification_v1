@@ -1,10 +1,10 @@
-azure-functions==1.21.3
-transformers==4.44.2
-dateparser==1.2.0
-tiktoken==0.7.0
-torch==2.3.1+cpu
-torchvision==0.18.1+cpu
-torchaudio==2.3.1
-sentence_transformers==2.6.1
-sentencepiece==0.1.99
+azure-functions
+transformers
+dateparser
+tiktoken
+torch
+torchvision
+torchaudio
+sentence_transformers
+sentencepiece
 
