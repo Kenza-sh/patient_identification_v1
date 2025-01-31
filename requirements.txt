@@ -47,7 +47,6 @@ transformers==4.30.0
 torch==2.0.0+cpu 
 tokenizers==0.13.0
 sentencepiece==0.1.99
-sentence-transformers==3.4.1
 simplejson==3.19.3
 six==1.17.0
 sympy==1.13.1
