@@ -1,8 +1,6 @@
 import azure.functions as func
 import logging
-from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
 import re
-import dateparser
 import json
 from typing import Optional, Dict
 
@@ -11,83 +9,9 @@ class InformationExtractor:
     def __init__(self):
         # Initialisation unique du modèle NER
         logger.info("Initialisation du modèle NER...")
-        self.tokenizer = AutoTokenizer.from_pretrained("Jean-Baptiste/camembert-ner-with-dates")
-        self.model = AutoModelForTokenClassification.from_pretrained("Jean-Baptiste/camembert-ner-with-dates")
-        self.nlp = pipeline('ner', model=self.model, tokenizer=self.tokenizer, aggregation_strategy="simple")
+       
         logger.info("Modèle NER initialisé avec succès.")
-
-    def check_noun(self, msg_2_check):
-        logger.debug(f"Vérification du nom : {msg_2_check}")
-        def check_str(msg_2_check: str) -> bool:
-            return isinstance(msg_2_check, str) and bool(msg_2_check.strip()) and any(ele in msg_2_check for ele in ["a", "e", "i", "o", "u", "y"])
-
-        if not check_str(msg_2_check):
-            logger.warning(f"Le message {msg_2_check} n'est pas une chaîne valide.")
-            return False
-
-        if not re.match(r"^[a-zA-ZÀ-ÿ' -]+$", msg_2_check):
-            logger.warning(f"Le message {msg_2_check} contient des caractères invalides.")
-            return False
-        return True
-
-    def extraire_nom(self, texte):
-        logger.info(f"Extraction du nom à partir du texte : {texte}")
-        entities = self.nlp(texte)
-        for ent in entities:
-            if ent['entity_group'] == "PER":
-                if self.check_noun(ent['word'].lower()):
-                    logger.info(f"Nom extrait : {ent['word'].upper()}")
-                    return ent['word'].upper()
-        logger.warning("Aucun nom n'a été extrait.")
-        return None
-
-    def extraire_prenom(self, texte):
-        logger.info(f"Extraction du prénom à partir du texte : {texte}")
-        entities = self.nlp(texte)
-        for ent in entities:
-            if ent['entity_group'] == "PER":
-                if self.check_noun(ent['word']):
-                    logger.info(f"Prénom extrait : {ent['word']}")
-                    return ent['word'].upper()
-        logger.warning("Aucun prénom n'a été extrait.")
-        return None
-
-    def extraire_date_naissance(self, texte):
-        logger.info(f"Extraction de la date de naissance à partir du texte : {texte}")
-        entities = self.nlp(texte)
-        for ent in entities:
-            if ent['entity_group'] == "DATE":
-                date_str = ent['word']
-                date_obj = dateparser.parse(date_str)
-                if date_obj:
-                    formatted_date = date_obj.strftime("%Y-%m-%d")
-                    logger.info(f"Date de naissance extraite : {formatted_date}")
-                    return formatted_date
-                else:
-                    logger.warning(f"Date non valide extraites : {date_str}")
-                    return date_str
-        logger.warning("Aucune date de naissance n'a été extraite.")
-        return None
-
-    def extraire_adresse(self, texte):
-        logger.info(f"Extraction de l'adresse à partir du texte : {texte}")
-        # Extraction du numéro de rue
-        numero_rue = re.search(r'\b\d+\b', texte)
-        adr = f"{numero_rue.group()} " if numero_rue else ""
-        adr=''
-        # Extraction des entités pertinentes
-        entities = self.nlp(texte)
-        for ent in entities:
-            if ent['entity_group'] in {"LOC", "PER"}:
-                adr += ent['word'] + ' '
-
-        adr = adr.strip()
-        if adr:
-            logger.info(f"Adresse extraite : {adr}")
-        else:
-            logger.warning("Aucune adresse n'a été extraite.")
-        return adr
-
+    
     def extraire_numero_telephone(self, texte):
         logger.info(f"Extraction du numéro de téléphone à partir du texte : {texte}")
         # Normalisation du texte en supprimant les espaces, tirets, et points
@@ -137,10 +61,6 @@ extractor = InformationExtractor()
 
 # Dictionnaire des actions disponibles
 handlers: Dict[str, callable] = {
-    "extraire_nom": extractor.extraire_nom,
-    "extraire_prenom": extractor.extraire_prenom,
-    "extraire_date_naissance": extractor.extraire_date_naissance,
-    "extraire_adresse": extractor.extraire_adresse,
     "extraire_adresse_mail": extractor.extraire_adresse_mail,
     "extraire_code_postal": extractor.extraire_code_postal,
     "extraire_numero_telephone": extractor.extraire_numero_telephone
