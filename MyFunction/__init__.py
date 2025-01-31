@@ -6,10 +6,6 @@ import dateparser
 import json
 from typing import Optional, Dict
 
-app =func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
-# Configuration du logger optimisée pour Azure Functions
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 class InformationExtractor:
     def __init__(self):
@@ -150,45 +146,61 @@ handlers: Dict[str, callable] = {
     "extraire_numero_telephone": extractor.extraire_numero_telephone
 }
 
-@app.route(route="patient_ident")
-def patient_ident(req: func.HttpRequest) -> func.HttpResponse:
+def main(req: func.HttpRequest) -> func.HttpResponse:
     """Gère la requête en fonction de l'action demandée"""
     logger.info("Début du traitement de la requête HTTP")
+
     try:
         req_body = req.get_json()
         logger.info("Corps de la requête JSON récupéré avec succès")
-    except ValueError:
-        logger.error("Erreur lors de la récupération du corps de la requête. Le JSON est invalide.")
-        return func.HttpResponse("Invalid JSON", status_code=400)
+    except ValueError as e:
+        logger.error(f"Erreur lors du traitement de la requête : {str(e)}")
+        return func.HttpResponse(
+            json.dumps({"error": "Invalid JSON format"}),
+            mimetype="application/json",
+            status_code=400
+        )
 
+    # Extraction et validation des paramètres
     action = req_body.get("action", "").strip()
     texte = req_body.get("texte", "").strip()
 
-    # Vérification des paramètres
     if not action or not texte:
-        logger.warning("Paramètres manquants ou invalides : 'action' ou 'texte' manquants.")
-        return func.HttpResponse("Paramètres 'action' et 'texte' requis", status_code=400)
+        return func.HttpResponse(
+            json.dumps({"error": "Paramètres 'action' et 'texte' requis"}),
+            mimetype="application/json",
+            status_code=400
+        )
+
     logger.info(f"Action reçue : {action}")
-    logger.info(f"Texte reçu : {texte[:50]}...")  # Affichage limité pour ne pas exposer de données sensibles dans les logs
+    logger.info(f"Texte reçu : {texte[:50]}...")  # Limite pour éviter d'exposer des données sensibles
+
     # Vérification si l'action est valide
     handler = handlers.get(action)
     if not handler:
         logger.error(f"Action inconnue : {action}")
-        return func.HttpResponse("Action inconnue", status_code=400)
+        return func.HttpResponse(
+            json.dumps({"error": "Action inconnue"}),
+            mimetype="application/json",
+            status_code=400
+        )
+
     logger.info(f"Exécution de l'action : {action}")
+
     # Exécuter la fonction correspondante et retourner le résultat
     try:
         result = handler(texte)
-        logger.info(f"Résultat de l'action {action} : {result}")
-        return func.HttpResponse(json.dumps({action: result}), mimetype="application/json", status_code=200)
+        return func.HttpResponse(
+            json.dumps({"response": result}),
+            mimetype="application/json",
+            status_code=200
+        )
     except Exception as e:
-        logger.error(f"Erreur lors de l'extraction pour l'action {action}: {str(e)}")
-        return func.HttpResponse(f"Erreur lors de l'extraction : {str(e)}", status_code=500)
+        logger.error(f"Erreur lors de l'exécution de l'action '{action}': {str(e)}")
+        return func.HttpResponse(
+            json.dumps({"error": f"Erreur lors de l'exécution: {str(e)}"}),
+            mimetype="application/json",
+            status_code=500
+        )
 
-
-
-
-
-
-       
            
