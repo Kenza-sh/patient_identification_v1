@@ -4,6 +4,9 @@ import re
 import json
 from typing import Optional, Dict
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 class InformationExtractor:
     def __init__(self):
