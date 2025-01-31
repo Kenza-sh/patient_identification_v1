@@ -3,8 +3,5 @@ transformers
 dateparser
 tiktoken
 torch
-torchvision
-torchaudio
-sentence_transformers
 sentencepiece
 
