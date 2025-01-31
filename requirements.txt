@@ -54,8 +54,6 @@ tensorstore==0.1.71
 threadpoolctl==3.5.0
 tiktoken==0.8.0
 toolz==1.0.0
-torchaudio==2.6.0
-torchvision==0.21.0
 tqdm==4.67.1
 typing_extensions==4.12.2
 tzdata==2025.1
